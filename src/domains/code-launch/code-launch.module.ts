@@ -4,6 +4,7 @@ import { QueueRegisterModule } from '@common/adapters/bullmq';
 
 import { CodeLaunchRequestProcessor } from './processors/code-launch-request.processor';
 import { CodeLaunchRequestController } from './controllers/code-launch-request.controller';
+import { DockerService } from './services/docker.service';
 
 @Module({
     imports: [
@@ -15,6 +16,8 @@ import { CodeLaunchRequestController } from './controllers/code-launch-request.c
         CodeLaunchRequestProcessor,
         // NOTE: Processor로부터 요청을 받는 Controller
         CodeLaunchRequestController,
+        // NOTE: Docker 컨테이너 관리 서비스
+        DockerService,
     ],
 })
 export class CodeLaunchModule {}

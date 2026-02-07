@@ -18,11 +18,11 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
     }
 
     // NOTE: Job 처리 메서드
-    process(job: Job<CodeLaunchRequestJob>): any {
+    async process(job: Job<CodeLaunchRequestJob>): Promise<void> {
         switch (job?.name) {
             // NOTE: 코드 실행 요청 처리
             case 'launch':
-                this.codeLaunchRequestController.launch(job.data);
+                await this.codeLaunchRequestController.launch(job.data);
                 break;
             default:
                 return;
