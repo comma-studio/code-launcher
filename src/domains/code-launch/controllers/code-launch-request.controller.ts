@@ -14,8 +14,8 @@ export class CodeLaunchRequestController {
     ) {}
 
     // NOTE: 코드 실행 요청 처리 메서드
-    public launch = async (job: CodeLaunchRequestJob): Promise<void> => {
+    public async launch(job: CodeLaunchRequestJob): Promise<void> {
         // NOTE: Docker 컨테이너 생성 및 시작
         await this.dockerService.createAndStartContainer(job.codeLanguage, job.code);
-    };
+    }
 }
