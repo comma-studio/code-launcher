@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class RedisConfig {
@@ -9,6 +10,7 @@ export class RedisConfig {
     // NOTE: Redis 포트
     @IsNumber()
     @IsNotEmpty()
+    @Type(() => Number)
     PORT: number;
 
     // NOTE: Redis 유저 이름
