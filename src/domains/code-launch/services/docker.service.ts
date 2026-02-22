@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Docker from 'dockerode';
+import { DOCKER_IMAGE_MAP } from '../common/constants/docker-image-map.constant';
 
 interface PullEvent {
     status?: string;
@@ -32,12 +33,7 @@ export class DockerService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async createAndStartContainer(codeLanguage: string, code: string): Promise<Docker.Container> {
         try {
-            // NOTE: 언어별 Docker 이미지 매핑
-            const imageMap: Record<string, string> = {
-                javascript: 'node:20-slim',
-            };
-
-            const imageName = imageMap[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
+            const imageName = DOCKER_IMAGE_MAP[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
 
             this.logger.log(`Creating container with image: ${imageName}`);
 
