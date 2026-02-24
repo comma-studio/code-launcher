@@ -1,0 +1,13 @@
+{
+    "REDIS": {
+        "HOST": "localhost",
+        "PORT": 6379,
+        "USERNAME": "",
+        "PASSWORD": ""
+    },
+    "BULLMQ_QUEUE_CONFIG": {
+        "RETRY_ATTEMPTS": 3,
+        "REMOVE_ON_COMPLETE": true,
+        "REMOVE_ON_FAIL": false
+    }
+}
