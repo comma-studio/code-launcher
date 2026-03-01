@@ -6,9 +6,9 @@ WORKDIR /app
 RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml ./
-# lockfile이 최신이 아닐 수 있으므로 --no-frozen-lockfile 사용
-# 프로덕션에서는 로컬에서 lockfile을 업데이트한 후 --frozen-lockfile 사용 권장
-RUN CI=true pnpm install --no-frozen-lockfile
+
+# 의존성 설치 (CI 환경 재현 및 잠금파일 고정)
+RUN CI=true pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
@@ -26,8 +26,8 @@ COPY --from=builder /app/configs ./configs
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 
-# lockfile이 최신이 아닐 수 있으므로 --no-frozen-lockfile 사용
-RUN CI=true pnpm install --prod --no-frozen-lockfile --ignore-scripts
+# 프로덕션 의존성 설치
+RUN CI=true pnpm install --prod --frozen-lockfile --ignore-scripts
 
 EXPOSE 4000
 ENV PORT=4000
