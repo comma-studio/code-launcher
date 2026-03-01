@@ -69,9 +69,12 @@ export class DockerPtyService {
 
             // NOTE: 스트림 종료 시 세션 정리
             stream.on('close', () => {
-                this.logger.log(`PTY stream closed (socket: ${socket.id})`);
+                // NOTE: 세션이 이미 정리되었을 수 있으므로 존재 여부 확인
+                if (!this.sessions.has(socket.id)) return;
+
                 socket.emit('exit');
                 this.sessions.delete(socket.id);
+                this.logger.log(`PTY stream closed (socket: ${socket.id})`);
             });
 
             stream.on('error', (err: Error) => {
@@ -119,8 +122,8 @@ export class DockerPtyService {
     closeSession(socketId: string): void {
         const session = this.sessions.get(socketId);
         if (session) {
-            session.stream.destroy();
             this.sessions.delete(socketId);
+            session.stream.destroy();
             this.logger.log(`PTY session closed (socket: ${socketId})`);
         }
     }
