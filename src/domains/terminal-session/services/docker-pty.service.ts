@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import Docker from 'dockerode';
 import { Duplex } from 'stream';
+import { DOCKER_CLIENT } from '@common/adapters/docker';
 
 interface PtySession {
     exec: Docker.Exec;
@@ -14,14 +15,10 @@ interface PtySession {
 @Injectable()
 export class DockerPtyService {
     private readonly logger = new Logger(DockerPtyService.name);
-    private readonly docker: Docker;
-
     // NOTE: socketId → PtySession 매핑
     private readonly sessions = new Map<string, PtySession>();
 
-    constructor() {
-        this.docker = new Docker();
-    }
+    constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
 
     /**
      * NOTE: 특정 컨테이너에 PTY exec 세션을 열고 소켓과 스트림을 연결
