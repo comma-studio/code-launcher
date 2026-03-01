@@ -35,6 +35,11 @@ export class DockerPtyService {
         size: { cols: number; rows: number },
     ): Promise<void> {
         try {
+            // NOTE: 기존 세션이 있으면 정리
+            if (this.sessions.has(socket.id)) {
+                this.closeSession(socket.id);
+            }
+
             // NOTE: 컨테이너 인스턴스 가져오기
             const container = this.docker.getContainer(containerId);
 
