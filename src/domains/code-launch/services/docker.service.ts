@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import Docker from 'dockerode';
+import { DOCKER_CLIENT } from '@common/adapters/docker';
 import { DOCKER_IMAGE_MAP } from '../common/constants/docker-image-map.constant';
 
 interface PullEvent {
@@ -14,15 +15,10 @@ interface PullEvent {
 export class DockerService {
     // NOTE: 로깅을 위한 Logger 인스턴스
     private readonly logger = new Logger(DockerService.name);
-    // NOTE: 도커 컨테이너 관리를 위한 Docker 클라이언트 인스턴스
-    private readonly docker: Docker;
     // NOTE: 컨테이너 자동 종료 시간 설정 (초 단위)
     private readonly CONTAINER_TIMEOUT_SECONDS = 2 * 60;
 
-    constructor() {
-        // NOTE: Docker 클라이언트 초기화
-        this.docker = new Docker();
-    }
+    constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
 
     /**
      * NOTE: 코드 실행을 위한 Docker 컨테이너 생성 및 시작
