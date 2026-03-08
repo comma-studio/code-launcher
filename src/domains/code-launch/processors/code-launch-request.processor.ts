@@ -1,10 +1,13 @@
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 
-import { CodeLaunchRequestController } from '../controllers/code-launch-request.controller';
+import { QueueConfig } from '@common/adapters/bullmq';
 
 import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-job.interface';
+import { DockerService } from '../services/docker.service';
+import { CodeLaunchResponseService } from '../services/code-launch-response.service';
 
 /**
  * NOTE: BullMQ로부터 들어오는 코드 실행 요청을 처리하는 Processor
@@ -12,12 +15,20 @@ import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-j
 @Processor('code-launch-requests')
 export class CodeLaunchRequestProcessor extends WorkerHost {
     private readonly logger = new Logger(CodeLaunchRequestProcessor.name);
+    // NOTE: 최대 재시도 횟수
+    private readonly maxAttempts: number;
 
     constructor(
-        // NOTE: CodeLaunchRequestController 주입
-        private readonly codeLaunchRequestController: CodeLaunchRequestController,
+        // NOTE: DockerService 주입
+        private readonly dockerService: DockerService,
+        // NOTE: CodeLaunchResponseService 주입
+        private readonly codeLaunchResponseService: CodeLaunchResponseService,
+        private readonly configService: ConfigService,
     ) {
         super();
+
+        this.maxAttempts =
+            this.configService.getOrThrow<QueueConfig>('BULLMQ_QUEUE_CONFIG').RETRY_ATTEMPTS;
     }
 
     @OnWorkerEvent('active')
@@ -31,11 +42,16 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
     }
 
     @OnWorkerEvent('failed')
-    onFailed(job: Job, error: Error): void {
+    onFailed(job: Job<CodeLaunchRequestJob>, error: Error): void {
         this.logger.error(
             `Job failed - [${job.name}] (id: ${job.id}) | attempt: ${job.attemptsMade} | ${error.message}`,
             error.stack,
         );
+
+        // NOTE: 최종 실패 시 클라이언트에게 에러 응답 전송 (Job에 명시된 attempts 옵션이 없는 경우 기본 maxAttempts 사용)
+        if (job.attemptsMade >= (job.opts.attempts ?? this.maxAttempts)) {
+            void this.codeLaunchResponseService.sendErrorResponse(job.data.clientSocketId, error);
+        }
     }
 
     // NOTE: Job 처리 메서드
@@ -43,11 +59,26 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
         switch (job?.name) {
             // NOTE: 코드 실행 요청 처리
             case 'launch':
-                await this.codeLaunchRequestController.launch(job.data);
+                await this.launch(job.data);
                 break;
             default:
                 this.logger.warn(`Job unknown - [${job.name}] (id: ${job.id})`);
-                return;
+                void this.codeLaunchResponseService.sendErrorResponse(
+                    job.data.clientSocketId,
+                    new Error(`Unknown job name: ${job.name}`),
+                );
         }
+    }
+
+    // NOTE: 코드 실행 요청 처리 메서드
+    private async launch(job: CodeLaunchRequestJob): Promise<void> {
+        // NOTE: Docker 컨테이너 생성 및 시작
+        const containerId = await this.dockerService.createAndStartContainer(
+            job.codeLanguage,
+            job.code,
+        );
+
+        // NOTE: 성공 응답 전송
+        await this.codeLaunchResponseService.sendSuccessResponse(job.clientSocketId, containerId);
     }
 }
