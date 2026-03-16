@@ -32,8 +32,6 @@ export class CodeLaunchResponseService {
      * @param containerId 생성된 컨테이너 ID
      */
     async sendSuccessResponse(clientSocketId: string, containerId: string): Promise<void> {
-        this.logger.log(`Sending success response - clientSocketId: ${clientSocketId}`);
-
         await this.codeLaunchResponsesQueue.add('launched', {
             status: CodeLaunchStatus.SUCCESS,
             clientSocketId,
@@ -46,7 +44,9 @@ export class CodeLaunchResponseService {
             },
         });
 
-        this.logger.log('Success response sent');
+        this.logger.log(
+            `Sent success response - clientSocketId: ${clientSocketId}, containerId: ${containerId}`,
+        );
     }
 
     /**
@@ -54,8 +54,6 @@ export class CodeLaunchResponseService {
      * @param clientSocketId 클라이언트 소켓 ID
      */
     async sendErrorResponse(clientSocketId: string, error?: Error): Promise<void> {
-        this.logger.log(`Sending error response - clientSocketId: ${clientSocketId}`);
-
         await this.codeLaunchResponsesQueue.add('launched', {
             status: CodeLaunchStatus.ERROR,
             clientSocketId,
@@ -65,6 +63,8 @@ export class CodeLaunchResponseService {
             },
         });
 
-        this.logger.log('Error response sent');
+        this.logger.log(
+            `Sent error response - clientSocketId: ${clientSocketId}, error: ${error?.message ?? 'Unknown error'}`,
+        );
     }
 }

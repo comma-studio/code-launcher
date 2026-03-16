@@ -30,8 +30,6 @@ export class DockerService {
     async createAndStartContainer(codeLanguage: string, code: string): Promise<string> {
         const imageName = DOCKER_IMAGE_MAP[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
 
-        this.logger.log(`Creating container with image: ${imageName}`);
-
         // NOTE: 이미지가 로컬에 없으면 pull
         await this.pullImageIfNotExists(imageName);
 
@@ -51,6 +49,10 @@ export class DockerService {
 
         // NOTE: 컨테이너 정보 조회
         const containerInfo = await container.inspect();
+
+        this.logger.log(
+            `Created and started container - ID: ${containerInfo.Id}, Image: ${imageName}`,
+        );
 
         return containerInfo.Id;
     }
