@@ -9,5 +9,9 @@
         "RETRY_ATTEMPTS": 3,
         "REMOVE_ON_COMPLETE": true,
         "REMOVE_ON_FAIL": false
+    },
+    "WS_CONNECTION": {
+        "PROTOCOL": "ws",
+        "URL": "localhost:4000"
     }
 }
