@@ -1,4 +1,5 @@
 import { Logger, UseFilters } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
     ConnectedSocket,
     MessageBody,
@@ -33,7 +34,10 @@ interface ResizePayload {
 export class TerminalSessionGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly logger = new Logger(TerminalSessionGateway.name);
 
-    constructor(private readonly dockerPtyService: DockerPtyService) {}
+    constructor(
+        private readonly dockerPtyService: DockerPtyService,
+        private readonly eventEmitter: EventEmitter2,
+    ) {}
 
     /**
      * NOTE: 클라이언트가 소켓으로 연결될 때 이벤트 핸들러
@@ -62,6 +66,9 @@ export class TerminalSessionGateway implements OnGatewayConnection, OnGatewayDis
 
         // NOTE: DockerPtyService를 사용하여 세션 열기
         await this.dockerPtyService.openSession(socket, containerId, { cols, rows });
+
+        // NOTE: code-launch 도메인에서 컨테이너 연결 대기 타이머를 취소하도록 이벤트 전달
+        this.eventEmitter.emit('container.attached', { containerId });
 
         // NOTE: 세션이 성공적으로 열렸음을 클라이언트에 알림
         socket.emit('ready');

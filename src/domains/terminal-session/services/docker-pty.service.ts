@@ -7,6 +7,7 @@ import { DOCKER_CLIENT } from '@common/adapters/docker';
 interface PtySession {
     exec: Docker.Exec;
     stream: Duplex;
+    containerId: string;
 }
 
 /**
@@ -84,7 +85,7 @@ export class DockerPtyService {
                 socket.emit('error', err.message);
             });
 
-            this.sessions.set(socket.id, { exec, stream });
+            this.sessions.set(socket.id, { exec, stream, containerId });
 
             this.logger.log(`PTY session opened — container: ${containerId}, socket: ${socket.id}`);
         } catch (error) {
@@ -118,7 +119,7 @@ export class DockerPtyService {
     }
 
     /**
-     * NOTE: PTY 세션 종료 및 정리
+     * NOTE: PTY 세션 종료 및 정리. 연결된 컨테이너도 함께 종료
      * @param socketId 소켓 ID
      */
     closeSession(socketId: string): void {
@@ -126,7 +127,22 @@ export class DockerPtyService {
         if (session) {
             this.sessions.delete(socketId);
             session.stream.destroy();
+            void this.stopContainer(session.containerId);
             this.logger.log(`PTY session closed (socket: ${socketId})`);
+        }
+    }
+
+    /**
+     * NOTE: Docker 컨테이너 종료
+     * @param containerId 종료할 컨테이너 ID
+     */
+    private async stopContainer(containerId: string): Promise<void> {
+        try {
+            const container = this.docker.getContainer(containerId);
+            await container.stop();
+            this.logger.log(`Container stopped (id: ${containerId})`);
+        } catch (error) {
+            this.logger.error(`Failed to stop container ${containerId}`, error);
         }
     }
 }

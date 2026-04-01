@@ -8,6 +8,7 @@ import { QueueConfig } from '@common/adapters/bullmq';
 import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-job.interface';
 import { DockerService } from '../services/docker.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
+import { ContainerConnectionTimeoutService } from '../services/container-connection-timeout.service';
 
 /**
  * NOTE: BullMQ로부터 들어오는 코드 실행 요청을 처리하는 Processor
@@ -23,6 +24,8 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
         private readonly dockerService: DockerService,
         // NOTE: CodeLaunchResponseService 주입
         private readonly codeLaunchResponseService: CodeLaunchResponseService,
+        // NOTE: PTY 미연결 시 컨테이너 자동 종료 타이머 서비스
+        private readonly containerConnectionTimeoutService: ContainerConnectionTimeoutService,
         private readonly configService: ConfigService,
     ) {
         super();
@@ -77,6 +80,9 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
             job.codeLanguage,
             job.code,
         );
+
+        // NOTE: PTY 미연결 시 5초 후 컨테이너 종료 타이머 시작
+        this.containerConnectionTimeoutService.startTimer(containerId);
 
         // NOTE: 성공 응답 전송
         await this.codeLaunchResponseService.sendSuccessResponse(job.clientSocketId, containerId);
