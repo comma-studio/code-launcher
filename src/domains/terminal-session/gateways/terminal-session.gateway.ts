@@ -49,9 +49,13 @@ export class TerminalSessionGateway implements OnGatewayConnection, OnGatewayDis
     /**
      * NOTE: 클라이언트가 소켓 연결을 끊을 때 이벤트 핸들러
      */
-    handleDisconnect(socket: Socket) {
+    async handleDisconnect(socket: Socket) {
         this.logger.log(`Socket disconnected: ${socket.id}`);
-        this.dockerPtyService.closeSession(socket.id);
+        try {
+            await this.dockerPtyService.closeSession(socket.id);
+        } catch (error) {
+            this.logger.error(`Failed to close session (socket: ${socket.id})`, error);
+        }
     }
 
     /**

@@ -35,7 +35,7 @@ export class DockerPtyService {
         try {
             // NOTE: 기존 세션이 있으면 정리
             if (this.sessions.has(socket.id)) {
-                this.closeSession(socket.id);
+                await this.closeSession(socket.id);
             }
 
             // NOTE: 컨테이너 인스턴스 가져오기
@@ -122,12 +122,12 @@ export class DockerPtyService {
      * NOTE: PTY 세션 종료 및 정리. 연결된 컨테이너도 함께 종료
      * @param socketId 소켓 ID
      */
-    closeSession(socketId: string): void {
+    async closeSession(socketId: string): Promise<void> {
         const session = this.sessions.get(socketId);
         if (session) {
             this.sessions.delete(socketId);
             session.stream.destroy();
-            void this.stopContainer(session.containerId);
+            await this.stopContainer(session.containerId);
             this.logger.log(`PTY session closed (socket: ${socketId})`);
         }
     }
