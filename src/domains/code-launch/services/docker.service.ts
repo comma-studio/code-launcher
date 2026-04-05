@@ -23,11 +23,9 @@ export class DockerService {
     /**
      * NOTE: 코드 실행을 위한 Docker 컨테이너 생성 및 시작
      * @param codeLanguage 프로그래밍 언어
-     * @param code 실행할 코드 (추후 컨테이너에 주입 예정)
      * @returns 컨테이너 ID
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async createAndStartContainer(codeLanguage: string, code: string): Promise<string> {
+    async createAndStartContainer(codeLanguage: string): Promise<string> {
         const imageName = DOCKER_IMAGE_MAP[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
 
         // NOTE: 이미지가 로컬에 없으면 pull
@@ -46,6 +44,14 @@ export class DockerService {
 
         // NOTE: 컨테이너 시작
         await container.start();
+
+        // NOTE: /workspace 디렉터리 생성
+        const mkdirExec = await container.exec({
+            Cmd: ['mkdir', '-p', '/workspace'],
+            AttachStdout: false,
+            AttachStderr: false,
+        });
+        await mkdirExec.start({ Detach: true });
 
         // NOTE: 컨테이너 정보 조회
         const containerInfo = await container.inspect();

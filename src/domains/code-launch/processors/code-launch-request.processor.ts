@@ -7,7 +7,10 @@ import { QueueConfig } from '@common/adapters/bullmq';
 
 import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-job.interface';
 import { DockerService } from '../services/docker.service';
+import { CodeLaunchService } from '../services/code-launch.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
+import { DockerPtyService } from '../../terminal-session/services/docker-pty.service';
+import { LANGUAGE_RUNNER_CONFIG } from '../common/constants/language-runner-config.constant';
 
 /**
  * NOTE: BullMQ로부터 들어오는 코드 실행 요청을 처리하는 Processor
@@ -19,9 +22,9 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
     private readonly maxAttempts: number;
 
     constructor(
-        // NOTE: DockerService 주입
         private readonly dockerService: DockerService,
-        // NOTE: CodeLaunchResponseService 주입
+        private readonly codeLaunchService: CodeLaunchService,
+        private readonly dockerPtyService: DockerPtyService,
         private readonly codeLaunchResponseService: CodeLaunchResponseService,
         private readonly configService: ConfigService,
     ) {
@@ -70,15 +73,33 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
         }
     }
 
-    // NOTE: 코드 실행 요청 처리 메서드
+    // NOTE: 코드 실행 요청 처리 메서드 (5단계 파이프라인)
     private async launch(job: CodeLaunchRequestJob): Promise<void> {
-        // NOTE: Docker 컨테이너 생성 및 시작
-        const containerId = await this.dockerService.createAndStartContainer(
-            job.codeLanguage,
-            job.code,
-        );
+        const config = LANGUAGE_RUNNER_CONFIG[job.codeLanguage.toLowerCase()];
+        if (!config) {
+            throw new Error(`Unsupported language: ${job.codeLanguage}`);
+        }
 
-        // NOTE: 성공 응답 전송
+        // NOTE: ① 컨테이너 생성 (/workspace mkdir 포함)
+        const containerId = await this.dockerService.createAndStartContainer(job.codeLanguage);
+
+        // NOTE: ② 코드 주입
+        await this.codeLaunchService.injectCode(containerId, config.fileName, job.code);
+
+        // NOTE: ③ 컴파일 (컴파일 언어만)
+        if (config.compileCmd) {
+            try {
+                await this.codeLaunchService.compile(containerId, config.compileCmd);
+            } catch (error) {
+                await this.codeLaunchService.removeContainer(containerId);
+                throw error;
+            }
+        }
+
+        // NOTE: ④ runCmd 등록 (PTY 세션 오픈 시 자동 실행)
+        this.dockerPtyService.registerRunCmd(containerId, config.runCmd);
+
+        // NOTE: ⑤ 성공 응답 발행
         await this.codeLaunchResponseService.sendSuccessResponse(job.clientSocketId, containerId);
     }
 }
