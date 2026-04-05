@@ -87,3 +87,7 @@ dist/
 
 # Local development
 .local
+
+# AI
+.agents/
+.bkit/
