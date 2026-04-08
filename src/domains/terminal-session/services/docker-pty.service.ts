@@ -74,6 +74,7 @@ export class DockerPtyService {
                 Cmd: cmd,
                 WorkingDir: '/workspace',
                 Env: ['TERM=xterm-256color', 'LANG=en_US.UTF-8'],
+                ConsoleSize: [size.cols, size.rows],
             });
 
             // NOTE: exec 스트림 시작
@@ -81,9 +82,6 @@ export class DockerPtyService {
                 hijack: true,
                 stdin: true,
             });
-
-            // NOTE: 터미널 초기 크기 설정
-            await exec.resize({ h: size.rows, w: size.cols });
 
             // NOTE: 컨테이너 출력 → 클라이언트 전송
             stream.on('data', (chunk: Buffer) => {
