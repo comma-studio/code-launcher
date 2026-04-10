@@ -15,12 +15,12 @@ interface ContainerAttachedEvent {
 export class ContainerConnectionTimeoutService {
     private readonly logger = new Logger(ContainerConnectionTimeoutService.name);
     private readonly timers = new Map<string, NodeJS.Timeout>();
-    private readonly TIMEOUT_MS = 5_000;
+    private readonly TIMEOUT_MS = 10_000;
 
     constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
 
     /**
-     * NOTE: 컨테이너 생성 직후 호출. 5초 내 PTY 연결이 없으면 컨테이너 종료
+     * NOTE: 컨테이너 생성 직후 호출. 특정 기간 내에 PTY 연결이 없으면 컨테이너 종료
      * @param containerId 모니터링할 컨테이너 ID
      */
     startTimer(containerId: string): void {

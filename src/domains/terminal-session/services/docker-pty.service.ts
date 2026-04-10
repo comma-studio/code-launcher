@@ -127,22 +127,8 @@ export class DockerPtyService {
         if (session) {
             this.sessions.delete(socketId);
             session.stream.destroy();
-            await this.stopContainer(session.containerId);
+            await this.docker.getContainer(session.containerId).stop();
             this.logger.log(`PTY session closed (socket: ${socketId})`);
-        }
-    }
-
-    /**
-     * NOTE: Docker 컨테이너 종료
-     * @param containerId 종료할 컨테이너 ID
-     */
-    private async stopContainer(containerId: string): Promise<void> {
-        try {
-            const container = this.docker.getContainer(containerId);
-            await container.stop();
-            this.logger.log(`Container stopped (id: ${containerId})`);
-        } catch (error) {
-            this.logger.error(`Failed to stop container ${containerId}`, error);
         }
     }
 }
