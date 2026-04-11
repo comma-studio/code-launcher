@@ -78,7 +78,8 @@ export class CodeLaunchResponseService {
         });
 
         this.logger.error(
-            `Sent error response - jobId: ${jobId}, clientSocketId: ${clientSocketId}, errorCode: ${errorCode}, error: ${error?.message ?? 'Unknown error'}`,
+            `Sent error response - jobId: ${jobId}, clientSocketId: ${clientSocketId}, errorCode: ${errorCode}, error: ${error ?? 'Unknown error'}`,
+            error?.stack,
         );
     }
 }
