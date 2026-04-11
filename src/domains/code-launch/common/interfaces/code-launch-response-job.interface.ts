@@ -1,3 +1,5 @@
+import { ErrorCode } from '../enums/error-code.enum';
+
 /**
  * NOTE: Code Launch 응답 상태 Enum
  */
@@ -29,7 +31,7 @@ export interface CodeLaunchResponseJob {
 
     // NOTE: 에러 정보 (실패 시)
     error?: {
-        code: string;
+        code: ErrorCode;
         message: string;
     };
 }

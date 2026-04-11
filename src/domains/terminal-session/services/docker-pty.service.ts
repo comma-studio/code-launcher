@@ -88,7 +88,10 @@ export class DockerPtyService {
 
             this.logger.log(`PTY session opened — container: ${containerId}, socket: ${socket.id}`);
         } catch (error) {
-            this.logger.error(`Failed to open PTY session for container ${containerId}`, error);
+            this.logger.error(
+                `Failed to open PTY session - containerId: ${containerId}, socket: ${socket.id}, error: ${error}`,
+                (error as Error).stack,
+            );
             throw error;
         }
     }

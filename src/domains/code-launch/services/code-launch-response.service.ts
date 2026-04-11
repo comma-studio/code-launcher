@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { WSConnectionConfig } from '@common/adapters/socket';
 
 import { CodeLaunchStatus } from '../common/interfaces/code-launch-response-job.interface';
+import { ErrorCode } from '../common/enums/error-code.enum';
 
 /**
  * NOTE: Code Launch 응답을 BullMQ를 통해 Backend로 전송하는 Service
@@ -30,8 +31,13 @@ export class CodeLaunchResponseService {
      * NOTE: 컨테이너 생성 성공 응답 전송
      * @param clientSocketId 클라이언트 소켓 ID
      * @param containerId 생성된 컨테이너 ID
+     * @param jobId BullMQ Job ID (로그 추적용)
      */
-    async sendSuccessResponse(clientSocketId: string, containerId: string): Promise<void> {
+    async sendSuccessResponse(
+        clientSocketId: string,
+        containerId: string,
+        jobId: string,
+    ): Promise<void> {
         await this.codeLaunchResponsesQueue.add('launched', {
             status: CodeLaunchStatus.SUCCESS,
             clientSocketId,
@@ -45,26 +51,34 @@ export class CodeLaunchResponseService {
         });
 
         this.logger.log(
-            `Sent success response - clientSocketId: ${clientSocketId}, containerId: ${containerId}`,
+            `Sent success response - jobId: ${jobId}, clientSocketId: ${clientSocketId}, containerId: ${containerId}`,
         );
     }
 
     /**
      * NOTE: 컨테이너 생성 실패 응답 전송
      * @param clientSocketId 클라이언트 소켓 ID
+     * @param errorCode 에러 코드
+     * @param jobId BullMQ Job ID (로그 추적용)
+     * @param error 원본 에러 객체
      */
-    async sendErrorResponse(clientSocketId: string, error?: Error): Promise<void> {
+    async sendErrorResponse(
+        clientSocketId: string,
+        errorCode: ErrorCode,
+        jobId: string,
+        error?: Error,
+    ): Promise<void> {
         await this.codeLaunchResponsesQueue.add('launched', {
             status: CodeLaunchStatus.ERROR,
             clientSocketId,
             error: {
-                code: '', // TODO: 에러 코드 추가 예정
+                code: errorCode,
                 message: error?.message ?? '',
             },
         });
 
-        this.logger.log(
-            `Sent error response - clientSocketId: ${clientSocketId}, error: ${error?.message ?? 'Unknown error'}`,
+        this.logger.error(
+            `Sent error response - jobId: ${jobId}, clientSocketId: ${clientSocketId}, errorCode: ${errorCode}, error: ${error?.message ?? 'Unknown error'}`,
         );
     }
 }
