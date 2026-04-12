@@ -1,10 +1,10 @@
-export interface LanguageRunnerConfig {
+export interface LanguageCommands {
     fileName: string;
     compileCmd?: string;
     runCmd: string;
 }
 
-export const LANGUAGE_RUNNER_CONFIG: Record<string, LanguageRunnerConfig> = {
+export const LANGUAGE_COMMAND_MAP: Record<string, LanguageCommands> = {
     javascript: {
         fileName: 'main.js',
         runCmd: 'node main.js',

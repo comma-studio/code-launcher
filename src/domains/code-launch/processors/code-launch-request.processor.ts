@@ -10,7 +10,7 @@ import { DockerService } from '../services/docker.service';
 import { CodeLaunchService } from '../services/code-launch.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
 import { DockerPtyService } from '../../terminal-session/services/docker-pty.service';
-import { LANGUAGE_RUNNER_CONFIG } from '../common/constants/language-runner-config.constant';
+import { LANGUAGE_COMMAND_MAP } from '../common/constants/language-command-map.constant';
 
 /**
  * NOTE: BullMQ로부터 들어오는 코드 실행 요청을 처리하는 Processor
@@ -75,7 +75,7 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
 
     // NOTE: 코드 실행 요청 처리 메서드 (5단계 파이프라인)
     private async launch(job: CodeLaunchRequestJob): Promise<void> {
-        const config = LANGUAGE_RUNNER_CONFIG[job.codeLanguage.toLowerCase()];
+        const config = LANGUAGE_COMMAND_MAP[job.codeLanguage.toLowerCase()];
         if (!config) {
             throw new Error(`Unsupported language: ${job.codeLanguage}`);
         }
