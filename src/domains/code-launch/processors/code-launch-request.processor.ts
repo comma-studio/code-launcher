@@ -97,7 +97,7 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
             }
         }
 
-        // NOTE: ⑤ 성공 응답 발행
+        // NOTE: ④ 성공 응답 발행
         await this.codeLaunchResponseService.sendSuccessResponse(job.clientSocketId, containerId);
     }
 }
