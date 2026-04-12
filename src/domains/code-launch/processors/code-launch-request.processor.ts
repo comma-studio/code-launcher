@@ -73,24 +73,24 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
 
     // NOTE: 코드 실행 요청 처리 메서드 (5단계 파이프라인)
     private async launch(job: CodeLaunchRequestJob): Promise<void> {
-        const config = LANGUAGE_COMMAND_MAP[job.codeLanguage.toLowerCase()];
-        if (!config) {
+        const langCommands = LANGUAGE_COMMAND_MAP[job.codeLanguage.toLowerCase()];
+        if (!langCommands) {
             throw new Error(`Unsupported language: ${job.codeLanguage}`);
         }
 
         // NOTE: ① 컨테이너 생성 (/workspace mkdir 포함) — runCmd를 Docker 라벨로 설정
         const containerId = await this.dockerService.createAndStartContainer(
             job.codeLanguage,
-            config.runCmd,
+            langCommands.runCmd,
         );
 
         // NOTE: ② 코드 주입
-        await this.codeLaunchService.injectCode(containerId, config.fileName, job.code);
+        await this.codeLaunchService.injectCode(containerId, langCommands.fileName, job.code);
 
         // NOTE: ③ 컴파일 (컴파일 언어만)
-        if (config.compileCmd) {
+        if (langCommands.compileCmd) {
             try {
-                await this.codeLaunchService.compile(containerId, config.compileCmd);
+                await this.codeLaunchService.compile(containerId, langCommands.compileCmd);
             } catch (error) {
                 await this.codeLaunchService.removeContainer(containerId);
                 throw error;
