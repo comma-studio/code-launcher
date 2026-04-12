@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 
 import { QueueRegisterModule } from '@common/adapters/bullmq';
-import { TerminalSessionModule } from '../terminal-session/terminal-session.module';
 
 import { CodeLaunchRequestProcessor } from './processors/code-launch-request.processor';
 import { DockerService } from './services/docker.service';
@@ -13,8 +12,6 @@ import { CodeLaunchResponseService } from './services/code-launch-response.servi
         // NOTE: BullMQ Queue 등록
         QueueRegisterModule.register('code-launch-requests'),
         QueueRegisterModule.register('code-launch-responses'),
-        // NOTE: DockerPtyService 공유를 위해 TerminalSessionModule import
-        TerminalSessionModule,
     ],
     providers: [
         // NOTE: Job을 처리하기 위한 Processor 등록

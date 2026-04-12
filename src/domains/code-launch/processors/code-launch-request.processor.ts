@@ -9,7 +9,6 @@ import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-j
 import { DockerService } from '../services/docker.service';
 import { CodeLaunchService } from '../services/code-launch.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
-import { DockerPtyService } from '../../terminal-session/services/docker-pty.service';
 import { LANGUAGE_COMMAND_MAP } from '../common/constants/language-command-map.constant';
 
 /**
@@ -24,7 +23,6 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
     constructor(
         private readonly dockerService: DockerService,
         private readonly codeLaunchService: CodeLaunchService,
-        private readonly dockerPtyService: DockerPtyService,
         private readonly codeLaunchResponseService: CodeLaunchResponseService,
         private readonly configService: ConfigService,
     ) {
@@ -80,8 +78,11 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
             throw new Error(`Unsupported language: ${job.codeLanguage}`);
         }
 
-        // NOTE: ① 컨테이너 생성 (/workspace mkdir 포함)
-        const containerId = await this.dockerService.createAndStartContainer(job.codeLanguage);
+        // NOTE: ① 컨테이너 생성 (/workspace mkdir 포함) — runCmd를 Docker 라벨로 설정
+        const containerId = await this.dockerService.createAndStartContainer(
+            job.codeLanguage,
+            config.runCmd,
+        );
 
         // NOTE: ② 코드 주입
         await this.codeLaunchService.injectCode(containerId, config.fileName, job.code);
@@ -95,9 +96,6 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
                 throw error;
             }
         }
-
-        // NOTE: ④ runCmd 등록 (PTY 세션 오픈 시 자동 실행)
-        this.dockerPtyService.registerRunCmd(containerId, config.runCmd);
 
         // NOTE: ⑤ 성공 응답 발행
         await this.codeLaunchResponseService.sendSuccessResponse(job.clientSocketId, containerId);

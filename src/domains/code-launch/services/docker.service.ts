@@ -23,9 +23,10 @@ export class DockerService {
     /**
      * NOTE: 코드 실행을 위한 Docker 컨테이너 생성 및 시작
      * @param codeLanguage 프로그래밍 언어
+     * @param runCmd PTY 세션 오픈 시 실행할 명령어 (Docker 라벨로 저장)
      * @returns 컨테이너 ID
      */
-    async createAndStartContainer(codeLanguage: string): Promise<string> {
+    async createAndStartContainer(codeLanguage: string, runCmd: string): Promise<string> {
         const imageName = DOCKER_IMAGE_MAP[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
 
         // NOTE: 이미지가 로컬에 없으면 pull
@@ -37,6 +38,8 @@ export class DockerService {
             // NOTE: 컨테이너가 일정 시간 후 종료되도록 sleep 명령어 사용
             Cmd: ['/bin/sh', '-c', `sleep ${this.CONTAINER_TIMEOUT_SECONDS}`],
             Tty: true,
+            // NOTE: runCmd를 라벨로 저장 — terminal-session 모듈이 openSession 시 읽어 실행
+            Labels: { 'comma.run-cmd': runCmd },
             HostConfig: {
                 AutoRemove: true, // NOTE: 컨테이너 종료 시 자동 삭제
             },

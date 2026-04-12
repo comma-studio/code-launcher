@@ -17,23 +17,12 @@ export class DockerPtyService {
     private readonly logger = new Logger(DockerPtyService.name);
     // NOTE: socketId → PtySession 매핑
     private readonly sessions = new Map<string, PtySession>();
-    // NOTE: containerId → runCmd 매핑 (openSession 시 직접 exec으로 실행)
-    private readonly pendingRunCmds = new Map<string, string>();
 
     constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
 
     /**
-     * NOTE: 컨테이너에 실행할 runCmd를 등록 (openSession 시 직접 exec으로 실행됨)
-     * @param containerId 컨테이너 ID
-     * @param runCmd 실행할 명령어
-     */
-    registerRunCmd(containerId: string, runCmd: string): void {
-        this.pendingRunCmds.set(containerId, runCmd);
-    }
-
-    /**
      * NOTE: 특정 컨테이너에 PTY exec 세션을 열고 소켓과 스트림을 연결
-     *       runCmd가 있으면 shell을 거치지 않고 명령어를 직접 exec — shell echo 없음
+     *       컨테이너 라벨 'comma.run-cmd'가 있으면 shell을 거치지 않고 명령어를 직접 exec
      * @param socket 클라이언트 소켓
      * @param containerId 연결할 컨테이너 ID
      * @param size 터미널 초기 크기
@@ -52,17 +41,14 @@ export class DockerPtyService {
             // NOTE: 컨테이너 인스턴스 가져오기
             const container = this.docker.getContainer(containerId);
 
-            // NOTE: 컨테이너 상태 확인
+            // NOTE: 컨테이너 상태 및 라벨 확인
             const containerInfo = await container.inspect();
             if (!containerInfo.State.Running) {
                 throw new Error(`Container ${containerId} is not running`);
             }
 
-            // NOTE: runCmd가 있으면 직접 실행, 없으면 대화형 shell
-            const runCmd = this.pendingRunCmds.get(containerId);
-            if (runCmd) {
-                this.pendingRunCmds.delete(containerId);
-            }
+            // NOTE: 컨테이너 라벨에서 runCmd 읽기 — 없으면 대화형 shell
+            const runCmd = containerInfo.Config.Labels?.['comma.run-cmd'];
             const cmd = runCmd ? runCmd.split(' ') : ['/bin/sh'];
 
             // NOTE: TTY exec 인스턴스 생성
