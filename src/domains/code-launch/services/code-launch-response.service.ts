@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { WSConnectionConfig } from '@common/adapters/socket';
 
 import { CodeLaunchStatus } from '../common/interfaces/code-launch-response-job.interface';
-import { ErrorCode } from '../common/enums/error-code.enum';
+import { ErrorCode } from '@common/enums/error-code.enum';
 
 /**
  * NOTE: Code Launch 응답을 BullMQ를 통해 Backend로 전송하는 Service

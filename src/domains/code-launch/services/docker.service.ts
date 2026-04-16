@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Docker from 'dockerode';
 import { DOCKER_CLIENT } from '@common/adapters/docker';
+import { CatchError } from '@common/decorators/catch-error.decorator';
 import { DOCKER_IMAGE_MAP } from '../common/constants/docker-image-map.constant';
+import { ErrorCode } from '@common/enums/error-code.enum';
 
 interface PullEvent {
     status?: string;
@@ -27,10 +29,10 @@ export class DockerService {
      * @param jobId BullMQ Job ID (로그 추적용)
      * @returns 컨테이너 ID
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @CatchError(ErrorCode.CONTAINER_CREATE_FAILED)
     async createAndStartContainer(
         codeLanguage: string,
-        code: string,
+        _code: string,
         jobId: string,
     ): Promise<string> {
         const imageName = DOCKER_IMAGE_MAP[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
@@ -67,6 +69,7 @@ export class DockerService {
      * @param imageName 이미지 이름
      * @param jobId BullMQ Job ID (로그 추적용)
      */
+    @CatchError(ErrorCode.IMAGE_PULL_FAILED)
     private async pullImageIfNotExists(imageName: string, jobId: string): Promise<void> {
         const images = await this.docker.listImages();
         const imageExists = images.some((image) =>

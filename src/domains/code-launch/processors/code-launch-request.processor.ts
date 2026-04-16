@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { QueueConfig } from '@common/adapters/bullmq';
 
 import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-job.interface';
-import { ErrorCode } from '../common/enums/error-code.enum';
+import { ErrorCode } from '@common/enums/error-code.enum';
 import { DockerService } from '../services/docker.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
 

@@ -1,4 +1,4 @@
-import { ErrorCode } from '../enums/error-code.enum';
+import { ErrorCode } from '@common/enums/error-code.enum';
 
 /**
  * NOTE: Code Launch 응답 상태 Enum
