@@ -7,8 +7,10 @@ import { QueueConfig } from '@common/adapters/bullmq';
 
 import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-job.interface';
 import { DockerService } from '../services/docker.service';
+import { CodeLaunchService } from '../services/code-launch.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
 import { ContainerConnectionTimeoutService } from '../services/container-connection-timeout.service';
+import { LANGUAGE_COMMAND_MAP } from '../common/constants/language-command-map.constant';
 
 /**
  * NOTE: BullMQ로부터 들어오는 코드 실행 요청을 처리하는 Processor
@@ -20,9 +22,8 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
     private readonly maxAttempts: number;
 
     constructor(
-        // NOTE: DockerService 주입
         private readonly dockerService: DockerService,
-        // NOTE: CodeLaunchResponseService 주입
+        private readonly codeLaunchService: CodeLaunchService,
         private readonly codeLaunchResponseService: CodeLaunchResponseService,
         // NOTE: PTY 미연결 시 컨테이너 자동 종료 타이머 서비스
         private readonly containerConnectionTimeoutService: ContainerConnectionTimeoutService,
@@ -73,14 +74,33 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
         }
     }
 
-    // NOTE: 코드 실행 요청 처리 메서드
+    // NOTE: 코드 실행 요청 처리 메서드 (5단계 파이프라인)
     private async launch(job: CodeLaunchRequestJob): Promise<void> {
-        // NOTE: Docker 컨테이너 생성 및 시작
+        const langCommands = LANGUAGE_COMMAND_MAP[job.codeLanguage.toLowerCase()];
+        if (!langCommands) {
+            throw new Error(`Unsupported language: ${job.codeLanguage}`);
+        }
+
+        // NOTE: ① 컨테이너 생성 (/workspace mkdir 포함) — runCmd를 Docker 라벨로 설정
         const containerId = await this.dockerService.createAndStartContainer(
             job.codeLanguage,
-            job.code,
+            langCommands.runCmd,
         );
 
+        // NOTE: ② 코드 주입
+        await this.codeLaunchService.injectCode(containerId, langCommands.fileName, job.code);
+
+        // NOTE: ③ 컴파일 (컴파일 언어만)
+        if (langCommands.compileCmd) {
+            try {
+                await this.codeLaunchService.compile(containerId, langCommands.compileCmd);
+            } catch (error) {
+                await this.codeLaunchService.removeContainer(containerId);
+                throw error;
+            }
+        }
+
+        // NOTE: ④ 성공 응답 발행
         // NOTE: PTY 미연결 시 5초 후 컨테이너 종료 타이머 시작
         this.containerConnectionTimeoutService.startTimer(containerId);
 

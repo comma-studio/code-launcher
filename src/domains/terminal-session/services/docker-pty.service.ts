@@ -23,6 +23,7 @@ export class DockerPtyService {
 
     /**
      * NOTE: 특정 컨테이너에 PTY exec 세션을 열고 소켓과 스트림을 연결
+     *       컨테이너 라벨 'comma.run-cmd'로 실행 명령어를 결정하며, 라벨이 없으면 예외 발생
      * @param socket 클라이언트 소켓
      * @param containerId 연결할 컨테이너 ID
      * @param size 터미널 초기 크기
@@ -41,11 +42,18 @@ export class DockerPtyService {
             // NOTE: 컨테이너 인스턴스 가져오기
             const container = this.docker.getContainer(containerId);
 
-            // NOTE: 컨테이너 상태 확인
+            // NOTE: 컨테이너 상태 및 라벨 확인
             const containerInfo = await container.inspect();
             if (!containerInfo.State.Running) {
                 throw new Error(`Container ${containerId} is not running`);
             }
+
+            // NOTE: 컨테이너 라벨에서 runCmd 읽기 — 없으면 보안상 예외 발생
+            const runCmd = containerInfo.Config.Labels?.['comma.run-cmd'];
+            if (!runCmd) {
+                throw new Error(`Container ${containerId} is missing required label 'comma.run-cmd'`);
+            }
+            const cmd = runCmd.split(' ');
 
             // NOTE: TTY exec 인스턴스 생성
             const exec = await container.exec({
@@ -53,17 +61,17 @@ export class DockerPtyService {
                 AttachStdout: true,
                 AttachStderr: true,
                 Tty: true,
-                Cmd: ['/bin/sh'],
+                Cmd: cmd,
+                WorkingDir: '/workspace',
+                Env: ['TERM=xterm-256color', 'LANG=en_US.UTF-8'],
+                ConsoleSize: [size.cols, size.rows],
             });
 
             // NOTE: exec 스트림 시작
             const stream = await exec.start({
-                hijack: true, // NOTE: 소켓을 직접 제어하여 양방향 통신 허용
+                hijack: true,
                 stdin: true,
             });
-
-            // NOTE: 터미널 초기 크기 설정
-            await exec.resize({ h: size.rows, w: size.cols });
 
             // NOTE: 컨테이너 출력 → 클라이언트 전송
             stream.on('data', (chunk: Buffer) => {
