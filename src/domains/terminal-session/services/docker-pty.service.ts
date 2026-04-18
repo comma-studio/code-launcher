@@ -22,7 +22,7 @@ export class DockerPtyService {
 
     /**
      * NOTE: 특정 컨테이너에 PTY exec 세션을 열고 소켓과 스트림을 연결
-     *       컨테이너 라벨 'comma.run-cmd'가 있으면 shell을 거치지 않고 명령어를 직접 exec
+     *       컨테이너 라벨 'comma.run-cmd'로 실행 명령어를 결정하며, 라벨이 없으면 예외 발생
      * @param socket 클라이언트 소켓
      * @param containerId 연결할 컨테이너 ID
      * @param size 터미널 초기 크기
@@ -47,9 +47,12 @@ export class DockerPtyService {
                 throw new Error(`Container ${containerId} is not running`);
             }
 
-            // NOTE: 컨테이너 라벨에서 runCmd 읽기 — 없으면 대화형 shell
+            // NOTE: 컨테이너 라벨에서 runCmd 읽기 — 없으면 보안상 예외 발생
             const runCmd = containerInfo.Config.Labels?.['comma.run-cmd'];
-            const cmd = runCmd ? runCmd.split(' ') : ['/bin/sh'];
+            if (!runCmd) {
+                throw new Error(`Container ${containerId} is missing required label 'comma.run-cmd'`);
+            }
+            const cmd = runCmd.split(' ');
 
             // NOTE: TTY exec 인스턴스 생성
             const exec = await container.exec({
