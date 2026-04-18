@@ -9,6 +9,7 @@ import { CodeLaunchRequestJob } from '../common/interfaces/code-launch-request-j
 import { DockerService } from '../services/docker.service';
 import { CodeLaunchService } from '../services/code-launch.service';
 import { CodeLaunchResponseService } from '../services/code-launch-response.service';
+import { ContainerConnectionTimeoutService } from '../services/container-connection-timeout.service';
 import { LANGUAGE_COMMAND_MAP } from '../common/constants/language-command-map.constant';
 
 /**
@@ -24,6 +25,8 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
         private readonly dockerService: DockerService,
         private readonly codeLaunchService: CodeLaunchService,
         private readonly codeLaunchResponseService: CodeLaunchResponseService,
+        // NOTE: PTY 미연결 시 컨테이너 자동 종료 타이머 서비스
+        private readonly containerConnectionTimeoutService: ContainerConnectionTimeoutService,
         private readonly configService: ConfigService,
     ) {
         super();
@@ -98,6 +101,10 @@ export class CodeLaunchRequestProcessor extends WorkerHost {
         }
 
         // NOTE: ④ 성공 응답 발행
+        // NOTE: PTY 미연결 시 5초 후 컨테이너 종료 타이머 시작
+        this.containerConnectionTimeoutService.startTimer(containerId);
+
+        // NOTE: 성공 응답 전송
         await this.codeLaunchResponseService.sendSuccessResponse(job.clientSocketId, containerId);
     }
 }
