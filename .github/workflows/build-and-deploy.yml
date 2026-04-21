@@ -1,0 +1,72 @@
+on:
+    push:
+        branches: [feature/#28]
+
+name: Build and Deploy
+
+env:
+    # GCP Artifact Registry 리전
+    GCP_AR_REGION: asia-northeast3
+
+    # GCP Artifact Registry 이미지 경로 (태그 제외)
+    GCP_AR_REPO_URL: asia-northeast3-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_AR_REPOSITORY_NAME }}/${{ secrets.GCP_AR_IMAGE_NAME }}
+
+jobs:
+    build-and-deploy:
+        name: Build and Deploy
+        runs-on: ubuntu-22.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - id: 'auth'
+              name: Authenticate to GCP
+              uses: google-github-actions/auth@v1
+              with:
+                  credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+            - name: Set up Cloud SDK
+              uses: google-github-actions/setup-gcloud@v1
+              with:
+                  project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+            - name: Configure Docker for Artifact Registry
+              run: |
+                  gcloud auth configure-docker ${{ env.GCP_AR_REGION }}-docker.pkg.dev
+
+            - name: Fetch config from Secret Manager
+              run: |
+                  gcloud secrets versions access latest --secret="${{ secrets.GCP_SECRET_NAME }}" > configs/config.json
+
+            - name: Build and Push to Artifact Registry
+              run: |
+                  IMAGE_TAG=${{ github.sha }}
+                  docker build \
+                    -t ${{ env.GCP_AR_REPO_URL }}:${IMAGE_TAG} \
+                    -t ${{ env.GCP_AR_REPO_URL }}:latest \
+                    .
+                  docker push ${{ env.GCP_AR_REPO_URL }}:${IMAGE_TAG}
+                  docker push ${{ env.GCP_AR_REPO_URL }}:latest
+
+            - name: Create Instance Template
+              run: |
+                  IMAGE_URL="${{ env.GCP_AR_REPO_URL }}:${{ github.sha }}"
+                  TEMPLATE_NAME="code-launcher-${{ github.sha }}"
+
+                  # startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
+                  STARTUP_SCRIPT=$(sed \
+                    -e "s|__IMAGE_URL__|${IMAGE_URL}|g" \
+                    -e "s|__AR_REGION__|${{ env.GCP_AR_REGION }}|g" \
+                    scripts/startup.sh.tpl)
+
+                  gcloud compute instance-templates create "${TEMPLATE_NAME}" \
+                    --project=${{ secrets.GCP_PROJECT_ID }} \
+                    --region=${{ secrets.GCP_VM_REGION }} \
+                    --machine-type=${{ secrets.GCP_VM_MACHINE_TYPE }} \
+                    --image-family=code-launcher-golden \
+                    --image-project=${{ secrets.GCP_PROJECT_ID }} \
+                    --boot-disk-size=10GB \
+                    --boot-disk-type=pd-standard \
+                    --metadata=startup-script="${STARTUP_SCRIPT}" \
+                    --scopes=cloud-platform \
+                    --tags=code-launcher
