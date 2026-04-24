@@ -59,17 +59,20 @@ jobs:
                     -e "s|__AR_REGION__|${{ env.GCP_AR_REGION }}|g" \
                     scripts/startup.sh.tpl)
 
-                  gcloud compute instance-templates create "${TEMPLATE_NAME}" \
-                    --project=${{ secrets.GCP_PROJECT_ID }} \
-                    --region=${{ secrets.GCP_VM_REGION }} \
-                    --machine-type=${{ secrets.GCP_VM_MACHINE_TYPE }} \
-                    --image-family=code-launcher-golden \
-                    --image-project=${{ secrets.GCP_PROJECT_ID }} \
-                    --boot-disk-size=10GB \
-                    --boot-disk-type=pd-standard \
-                    --metadata=startup-script="${STARTUP_SCRIPT}" \
-                    --scopes=cloud-platform \
-                    --tags=code-launcher
+                  if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --quiet 2>/dev/null; then
+                    echo "Instance template ${TEMPLATE_NAME} already exists, skipping creation."
+                  else
+                    gcloud compute instance-templates create "${TEMPLATE_NAME}" \
+                      --project=${{ secrets.GCP_PROJECT_ID }} \
+                      --machine-type=${{ secrets.GCP_VM_MACHINE_TYPE }} \
+                      --image-family=code-launcher-golden \
+                      --image-project=${{ secrets.GCP_PROJECT_ID }} \
+                      --boot-disk-size=10GB \
+                      --boot-disk-type=pd-standard \
+                      --metadata=startup-script="${STARTUP_SCRIPT}" \
+                      --scopes=cloud-platform \
+                      --tags=code-launcher
+                  fi
 
             - name: Deploy to MIG
               run: |
