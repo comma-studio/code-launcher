@@ -70,3 +70,19 @@ jobs:
                     --metadata=startup-script="${STARTUP_SCRIPT}" \
                     --scopes=cloud-platform \
                     --tags=code-launcher
+
+            - name: Deploy to MIG
+              run: |
+                  TEMPLATE_NAME="code-launcher-${{ github.sha }}"
+
+                  # MIG에 새 Instance Template으로 롤링 업데이트
+                  gcloud compute instance-groups managed rolling-action start-update ${{ secrets.GCP_MIG_NAME }} \
+                    --version=template="${TEMPLATE_NAME}" \
+                    --max-unavailable=0 \
+                    --max-surge=1 \
+                    --region=${{ secrets.GCP_VM_REGION }}
+
+                  # 롤링 업데이트 완료까지 대기
+                  gcloud compute instance-groups managed wait-until ${{ secrets.GCP_MIG_NAME }} \
+                    --version-target-reached \
+                    --region=${{ secrets.GCP_VM_REGION }}
