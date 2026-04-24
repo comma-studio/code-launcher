@@ -83,9 +83,9 @@ jobs:
                     --version=template="${TEMPLATE_NAME}" \
                     --max-unavailable=0 \
                     --max-surge=1 \
-                    --region=${{ secrets.GCP_VM_REGION }}
+                    --zone=${{ secrets.GCP_VM_ZONE }}
 
                   # 롤링 업데이트 완료까지 대기
                   gcloud compute instance-groups managed wait-until ${{ secrets.GCP_MIG_NAME }} \
                     --version-target-reached \
-                    --region=${{ secrets.GCP_VM_REGION }}
+                    --zone=${{ secrets.GCP_VM_ZONE }}
