@@ -71,7 +71,8 @@ jobs:
                       --boot-disk-type=pd-standard \
                       --metadata=startup-script="${STARTUP_SCRIPT}" \
                       --scopes=cloud-platform \
-                      --tags=code-launcher
+                      --tags=code-launcher \
+                      --no-address
                   fi
 
             - name: Deploy to MIG
