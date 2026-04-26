@@ -22,15 +22,11 @@ rm -rf \
   "${DEPLOY_DIR}/package.json" \
   "${DEPLOY_DIR}/pnpm-lock.yaml"
 
-docker cp "${CONTAINER_ID}:/app/dist"          "${DEPLOY_DIR}/dist"
-docker cp "${CONTAINER_ID}:/app/configs"       "${DEPLOY_DIR}/configs"
-docker cp "${CONTAINER_ID}:/app/package.json"  "${DEPLOY_DIR}/package.json"
-docker cp "${CONTAINER_ID}:/app/pnpm-lock.yaml" "${DEPLOY_DIR}/pnpm-lock.yaml"
+docker cp "${CONTAINER_ID}:/app/dist"         "${DEPLOY_DIR}/dist"
+docker cp "${CONTAINER_ID}:/app/configs"      "${DEPLOY_DIR}/configs"
+docker cp "${CONTAINER_ID}:/app/node_modules" "${DEPLOY_DIR}/node_modules"
+docker cp "${CONTAINER_ID}:/app/package.json" "${DEPLOY_DIR}/package.json"
 docker rm "${CONTAINER_ID}"
-
-echo "[startup] Installing production dependencies..."
-cd "${DEPLOY_DIR}"
-pnpm install --prod --frozen-lockfile --ignore-scripts
 
 echo "[startup] Starting app with PM2..."
 pm2 describe code-launcher > /dev/null 2>&1 \
