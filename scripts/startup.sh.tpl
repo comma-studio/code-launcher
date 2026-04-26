@@ -6,6 +6,7 @@ set -e
 IMAGE_URL="__IMAGE_URL__"
 AR_REGION="__AR_REGION__"
 DEPLOY_DIR="/opt/code-launcher"
+export HOME=/root
 
 echo "[startup] Configuring Docker auth for Artifact Registry..."
 gcloud auth configure-docker ${AR_REGION}-docker.pkg.dev --quiet
@@ -19,8 +20,8 @@ CONTAINER_ID=$(docker create "${IMAGE_URL}")
 rm -rf \
   "${DEPLOY_DIR}/dist" \
   "${DEPLOY_DIR}/configs" \
-  "${DEPLOY_DIR}/package.json" \
-  "${DEPLOY_DIR}/pnpm-lock.yaml"
+  "${DEPLOY_DIR}/node_modules" \
+  "${DEPLOY_DIR}/package.json"
 
 docker cp "${CONTAINER_ID}:/app/dist"         "${DEPLOY_DIR}/dist"
 docker cp "${CONTAINER_ID}:/app/configs"      "${DEPLOY_DIR}/configs"
@@ -29,6 +30,7 @@ docker cp "${CONTAINER_ID}:/app/package.json" "${DEPLOY_DIR}/package.json"
 docker rm "${CONTAINER_ID}"
 
 echo "[startup] Starting app with PM2..."
+cd "${DEPLOY_DIR}"
 pm2 describe code-launcher > /dev/null 2>&1 \
   && pm2 reload code-launcher \
   || pm2 start dist/main.js --name code-launcher
