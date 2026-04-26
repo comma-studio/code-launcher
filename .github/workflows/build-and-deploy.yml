@@ -4,13 +4,6 @@ on:
 
 name: Build and Deploy
 
-env:
-    # GCP Artifact Registry 리전
-    GCP_AR_REGION: asia-northeast3
-
-    # GCP Artifact Registry 이미지 경로 (태그 제외)
-    GCP_AR_REPO_URL: asia-northeast3-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_AR_REPOSITORY_NAME }}/${{ secrets.GCP_AR_IMAGE_NAME }}
-
 jobs:
     build-and-deploy:
         name: Build and Deploy
@@ -31,33 +24,30 @@ jobs:
               with:
                   project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-            - name: Configure Docker for Artifact Registry
-              run: |
-                  gcloud auth configure-docker ${{ env.GCP_AR_REGION }}-docker.pkg.dev
-
             - name: Fetch config from Secret Manager
               run: |
                   gcloud secrets versions access latest --secret="${{ secrets.GCP_SECRET_NAME }}" > configs/config.json
 
-            - name: Build and Push to Artifact Registry
+            - name: Build and Upload Artifact to GCS
               run: |
-                  IMAGE_TAG=${{ github.sha }}
-                  docker build \
-                    -t ${{ env.GCP_AR_REPO_URL }}:${IMAGE_TAG} \
-                    -t ${{ env.GCP_AR_REPO_URL }}:latest \
-                    .
-                  docker push ${{ env.GCP_AR_REPO_URL }}:${IMAGE_TAG}
-                  docker push ${{ env.GCP_AR_REPO_URL }}:latest
+                  npm install -g pnpm
+                  CI=true pnpm install --frozen-lockfile
+                  pnpm build
+
+                  # dist, configs, package 파일만 타볼로 묶어 GCS에 업로드
+                  # node_modules는 VM에서 pnpm-lock.yaml 기반으로 직접 설치
+                  tar -czf artifact.tar.gz dist/ configs/ package.json pnpm-lock.yaml
+                  gsutil cp artifact.tar.gz gs://${{ secrets.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz
+                  rm artifact.tar.gz
 
             - name: Create Instance Template
               run: |
-                  IMAGE_URL="${{ env.GCP_AR_REPO_URL }}:${{ github.sha }}"
+                  ARTIFACT_URL="gs://${{ secrets.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz"
                   TEMPLATE_NAME="code-launcher-${{ github.sha }}"
 
                   # startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
                   STARTUP_SCRIPT=$(sed \
-                    -e "s|__IMAGE_URL__|${IMAGE_URL}|g" \
-                    -e "s|__AR_REGION__|${{ env.GCP_AR_REGION }}|g" \
+                    -e "s|__ARTIFACT_URL__|${ARTIFACT_URL}|g" \
                     scripts/startup.sh.tpl)
 
                   if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --quiet 2>/dev/null; then
@@ -105,7 +95,7 @@ jobs:
                     --max-surge=1 \
                     --zone=${{ secrets.GCP_VM_ZONE }}
 
-                  # 롤링 업데이트 완료까지 대기
+                  # 롤링 업데이트 완료까지 대기 (5분 초과 시 실패 처리)
                   gcloud compute instance-groups managed wait-until ${{ secrets.GCP_MIG_NAME }} \
                     --version-target-reached \
                     --zone=${{ secrets.GCP_VM_ZONE }} \

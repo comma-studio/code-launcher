@@ -1,36 +1,31 @@
 #!/bin/bash
 # VM 부팅 시 자동 실행되는 스크립트
-# __IMAGE_URL__ 은 배포 시 실제 이미지 경로로 치환된다
+# __ARTIFACT_URL__ 은 배포 시 실제 GCS 경로로 치환된다
 set -e
 
-IMAGE_URL="__IMAGE_URL__"
-AR_REGION="__AR_REGION__"
+ARTIFACT_URL="__ARTIFACT_URL__"
 DEPLOY_DIR="/opt/code-launcher"
 export HOME=/root
 
-echo "[startup] Configuring Docker auth for Artifact Registry..."
-gcloud auth configure-docker ${AR_REGION}-docker.pkg.dev --quiet
+echo "[startup] Downloading artifact from GCS..."
+gsutil cp "${ARTIFACT_URL}" /tmp/artifact.tar.gz
 
-echo "[startup] Pulling image: ${IMAGE_URL}"
-docker pull "${IMAGE_URL}"
-
-echo "[startup] Extracting app artifacts from image..."
-CONTAINER_ID=$(docker create "${IMAGE_URL}")
-
+echo "[startup] Extracting artifact..."
 rm -rf \
   "${DEPLOY_DIR}/dist" \
   "${DEPLOY_DIR}/configs" \
   "${DEPLOY_DIR}/node_modules" \
-  "${DEPLOY_DIR}/package.json"
+  "${DEPLOY_DIR}/package.json" \
+  "${DEPLOY_DIR}/pnpm-lock.yaml"
 
-docker cp "${CONTAINER_ID}:/app/dist"         "${DEPLOY_DIR}/dist"
-docker cp "${CONTAINER_ID}:/app/configs"      "${DEPLOY_DIR}/configs"
-docker cp "${CONTAINER_ID}:/app/node_modules" "${DEPLOY_DIR}/node_modules"
-docker cp "${CONTAINER_ID}:/app/package.json" "${DEPLOY_DIR}/package.json"
-docker rm "${CONTAINER_ID}"
+tar -xzf /tmp/artifact.tar.gz -C "${DEPLOY_DIR}"
+rm /tmp/artifact.tar.gz
+
+echo "[startup] Installing production dependencies..."
+cd "${DEPLOY_DIR}"
+CI=true pnpm install --prod --frozen-lockfile --ignore-scripts
 
 echo "[startup] Starting app with PM2..."
-cd "${DEPLOY_DIR}"
 pm2 describe code-launcher > /dev/null 2>&1 \
   && pm2 reload code-launcher \
   || pm2 start dist/main.js --name code-launcher
