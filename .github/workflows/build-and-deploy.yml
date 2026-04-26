@@ -15,6 +15,7 @@ jobs:
     build-and-deploy:
         name: Build and Deploy
         runs-on: ubuntu-22.04
+        timeout-minutes: 10
         steps:
             - name: Checkout
               uses: actions/checkout@v3
@@ -75,6 +76,24 @@ jobs:
                       --no-address
                   fi
 
+            - name: Cleanup Old Instance Templates
+              run: |
+                  # code-launcher- 접두사 템플릿을 생성 시간 오름차순으로 정렬 후 5개 초과분 삭제
+                  TEMPLATES=$(gcloud compute instance-templates list \
+                    --filter="name~'^code-launcher-'" \
+                    --sort-by=creationTimestamp \
+                    --format="value(name)")
+
+                  TEMPLATE_COUNT=$(echo "${TEMPLATES}" | grep -c . || true)
+
+                  if [ "${TEMPLATE_COUNT}" -gt 5 ]; then
+                    DELETE_COUNT=$((TEMPLATE_COUNT - 5))
+                    echo "${TEMPLATES}" | head -n "${DELETE_COUNT}" | xargs -I{} gcloud compute instance-templates delete {} --quiet
+                    echo "Deleted ${DELETE_COUNT} old instance template(s)."
+                  else
+                    echo "Instance template count (${TEMPLATE_COUNT}) is within limit. No cleanup needed."
+                  fi
+
             - name: Deploy to MIG
               run: |
                   TEMPLATE_NAME="code-launcher-${{ github.sha }}"
@@ -89,4 +108,5 @@ jobs:
                   # 롤링 업데이트 완료까지 대기
                   gcloud compute instance-groups managed wait-until ${{ secrets.GCP_MIG_NAME }} \
                     --version-target-reached \
-                    --zone=${{ secrets.GCP_VM_ZONE }}
+                    --zone=${{ secrets.GCP_VM_ZONE }} \
+                    --timeout=300
