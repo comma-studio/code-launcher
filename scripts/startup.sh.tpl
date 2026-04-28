@@ -26,9 +26,10 @@ cd "${DEPLOY_DIR}"
 CI=true pnpm install --prod --frozen-lockfile --ignore-scripts
 
 echo "[startup] Starting app with PM2..."
-pm2 describe code-launcher > /dev/null 2>&1 \
-  && pm2 reload code-launcher \
-  || pm2 start dist/main.js --name code-launcher
+PRIVATE_IP=$(hostname -I | awk '{print $1}')
+PRIVATE_IP="${PRIVATE_IP}" pm2 describe code-launcher > /dev/null 2>&1 \
+  && PRIVATE_IP="${PRIVATE_IP}" pm2 reload code-launcher --update-env \
+  || PRIVATE_IP="${PRIVATE_IP}" pm2 start dist/main.js --name code-launcher
 
 pm2 save
 

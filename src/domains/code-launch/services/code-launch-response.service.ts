@@ -21,9 +21,20 @@ export class CodeLaunchResponseService {
         private readonly codeLaunchResponsesQueue: Queue,
         private readonly configService: ConfigService,
     ) {
-        // NOTE: WS_CONNECTION 설정으로부터 wsUrl 생성
         const wsConfig = this.configService.getOrThrow<WSConnectionConfig>('WS_CONNECTION');
-        this.wsUrl = `${wsConfig.PROTOCOL}://${wsConfig.URL}`;
+        const port = this.configService.getOrThrow<number>('PORT');
+        this.wsUrl = this.buildWsUrl(wsConfig, port);
+    }
+
+    private buildWsUrl(wsConfig: WSConnectionConfig, port: number): string {
+        if (process.env.NODE_ENV !== 'production') {
+            return `${wsConfig.PROTOCOL}://localhost:${port}`;
+        }
+        if (!wsConfig.PROXY_HOST) {
+            throw new Error('WS_CONNECTION.PROXY_HOST is required in production');
+        }
+        const privateIp = process.env.PRIVATE_IP;
+        return `${wsConfig.PROTOCOL}://${wsConfig.PROXY_HOST}/${privateIp}/${port}`;
     }
 
     /**
