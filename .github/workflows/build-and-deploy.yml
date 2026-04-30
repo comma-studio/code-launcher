@@ -48,6 +48,7 @@ jobs:
                   # startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
                   STARTUP_SCRIPT=$(sed \
                     -e "s|__ARTIFACT_URL__|${ARTIFACT_URL}|g" \
+                    -e "s|__PORT__|${{ secrets.GCP_APP_PORT }}|g" \
                     scripts/startup.sh.tpl)
 
                   if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --quiet 2>/dev/null; then
