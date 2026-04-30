@@ -96,8 +96,8 @@ jobs:
                     --max-surge=1 \
                     --zone=${{ secrets.GCP_VM_ZONE }}
 
-                  # 롤링 업데이트 완료까지 대기 (5분 초과 시 실패 처리)
+                  # 롤링 업데이트 완료까지 대기 (10분 초과 시 실패 처리)
                   gcloud compute instance-groups managed wait-until ${{ secrets.GCP_MIG_NAME }} \
                     --version-target-reached \
                     --zone=${{ secrets.GCP_VM_ZONE }} \
-                    --timeout=300
+                    --timeout=600
