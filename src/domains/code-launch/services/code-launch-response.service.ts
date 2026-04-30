@@ -22,7 +22,7 @@ export class CodeLaunchResponseService {
         private readonly configService: ConfigService,
     ) {
         const wsConfig = this.configService.getOrThrow<WSConnectionConfig>('WS_CONNECTION');
-        const port = this.configService.getOrThrow<number>('PORT');
+        const port = Number(process.env.PORT ?? 4000);
         this.wsUrl = this.buildWsUrl(wsConfig, port);
     }
 

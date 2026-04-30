@@ -1,5 +1,4 @@
 {
-    "PORT": 4000,
     "REDIS": {
         "HOST": "localhost",
         "PORT": 6379,
