@@ -22,11 +22,11 @@ jobs:
             - name: Set up Cloud SDK
               uses: google-github-actions/setup-gcloud@v1
               with:
-                  project_id: ${{ secrets.GCP_PROJECT_ID }}
+                  project_id: ${{ vars.GCP_PROJECT_ID }}
 
             - name: Fetch config from Secret Manager
               run: |
-                  gcloud secrets versions access latest --secret="${{ secrets.GCP_SECRET_NAME }}" > configs/config.json
+                  gcloud secrets versions access latest --secret="${{ vars.GCP_SECRET_NAME }}" > configs/config.json
 
             - name: Build and Upload Artifact to GCS
               run: |
@@ -37,28 +37,28 @@ jobs:
                   # dist, configs, package 파일만 타볼로 묶어 GCS에 업로드
                   # node_modules는 VM에서 pnpm-lock.yaml 기반으로 직접 설치
                   tar -czf artifact.tar.gz dist/ configs/ package.json pnpm-lock.yaml
-                  gsutil cp artifact.tar.gz gs://${{ secrets.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz
+                  gsutil cp artifact.tar.gz gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz
                   rm artifact.tar.gz
 
             - name: Create Instance Template
               run: |
-                  ARTIFACT_URL="gs://${{ secrets.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz"
+                  ARTIFACT_URL="gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz"
                   TEMPLATE_NAME="code-launcher-${{ github.sha }}"
 
                   # startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
                   STARTUP_SCRIPT=$(sed \
                     -e "s|__ARTIFACT_URL__|${ARTIFACT_URL}|g" \
-                    -e "s|__PORT__|${{ secrets.GCP_APP_PORT }}|g" \
+                    -e "s|__PORT__|${{ vars.APP_PORT }}|g" \
                     scripts/startup.sh.tpl)
 
                   if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --quiet 2>/dev/null; then
                     echo "Instance template ${TEMPLATE_NAME} already exists, skipping creation."
                   else
                     gcloud compute instance-templates create "${TEMPLATE_NAME}" \
-                      --project=${{ secrets.GCP_PROJECT_ID }} \
-                      --machine-type=${{ secrets.GCP_VM_MACHINE_TYPE }} \
+                      --project=${{ vars.GCP_PROJECT_ID }} \
+                      --machine-type=${{ vars.GCP_VM_MACHINE_TYPE }} \
                       --image-family=code-launcher-golden \
-                      --image-project=${{ secrets.GCP_PROJECT_ID }} \
+                      --image-project=${{ vars.GCP_PROJECT_ID }} \
                       --boot-disk-size=10GB \
                       --boot-disk-type=pd-standard \
                       --metadata=startup-script="${STARTUP_SCRIPT}" \
@@ -90,14 +90,14 @@ jobs:
                   TEMPLATE_NAME="code-launcher-${{ github.sha }}"
 
                   # MIG에 새 Instance Template으로 롤링 업데이트
-                  gcloud compute instance-groups managed rolling-action start-update ${{ secrets.GCP_MIG_NAME }} \
+                  gcloud compute instance-groups managed rolling-action start-update ${{ vars.GCP_MIG_NAME }} \
                     --version=template="${TEMPLATE_NAME}" \
                     --max-unavailable=0 \
                     --max-surge=1 \
-                    --zone=${{ secrets.GCP_VM_ZONE }}
+                    --zone=${{ vars.GCP_VM_ZONE }}
 
                   # 롤링 업데이트 완료까지 대기 (10분 초과 시 실패 처리)
-                  gcloud compute instance-groups managed wait-until ${{ secrets.GCP_MIG_NAME }} \
+                  gcloud compute instance-groups managed wait-until ${{ vars.GCP_MIG_NAME }} \
                     --version-target-reached \
-                    --zone=${{ secrets.GCP_VM_ZONE }} \
+                    --zone=${{ vars.GCP_VM_ZONE }} \
                     --timeout=600
