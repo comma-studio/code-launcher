@@ -24,6 +24,13 @@ jobs:
               with:
                   project_id: ${{ vars.GCP_PROJECT_ID }}
 
+            - name: Generate Build ID
+              run: |
+                  DATETIME=$(date +'%Y%m%d%H%M')
+
+                  # BUILD_ID: GCS 아티팩트 경로 및 Instance Template 이름에 사용
+                  echo "BUILD_ID=${DATETIME}.${{ github.sha }}" >> $GITHUB_ENV
+
             - name: Fetch config from Secret Manager
               run: |
                   gcloud secrets versions access latest --secret="${{ vars.GCP_SECRET_NAME }}" > configs/config.json
@@ -37,13 +44,13 @@ jobs:
                   # dist, configs, package 파일만 타볼로 묶어 GCS에 업로드
                   # node_modules는 VM에서 pnpm-lock.yaml 기반으로 직접 설치
                   tar -czf artifact.tar.gz dist/ configs/ package.json pnpm-lock.yaml
-                  gsutil cp artifact.tar.gz gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz
+                  gsutil cp artifact.tar.gz gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ env.BUILD_ID }}.tar.gz
                   rm artifact.tar.gz
 
             - name: Create Instance Template
               run: |
-                  ARTIFACT_URL="gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ github.sha }}.tar.gz"
-                  TEMPLATE_NAME="code-launcher-${{ github.sha }}"
+                  ARTIFACT_URL="gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ env.BUILD_ID }}.tar.gz"
+                  TEMPLATE_NAME="code-launcher.${{ env.BUILD_ID }}"
 
                   # startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
                   STARTUP_SCRIPT=$(sed \
@@ -71,7 +78,7 @@ jobs:
               run: |
                   # code-launcher- 접두사 템플릿을 생성 시간 오름차순으로 정렬 후 5개 초과분 삭제
                   TEMPLATES=$(gcloud compute instance-templates list \
-                    --filter="name~'^code-launcher-'" \
+                    --filter="name~'^code-launcher\.'" \
                     --sort-by=creationTimestamp \
                     --format="value(name)")
 
@@ -87,7 +94,7 @@ jobs:
 
             - name: Deploy to MIG
               run: |
-                  TEMPLATE_NAME="code-launcher-${{ github.sha }}"
+                  TEMPLATE_NAME="code-launcher.${{ env.BUILD_ID }}"
 
                   # MIG에 새 Instance Template으로 롤링 업데이트
                   gcloud compute instance-groups managed rolling-action start-update ${{ vars.GCP_MIG_NAME }} \
