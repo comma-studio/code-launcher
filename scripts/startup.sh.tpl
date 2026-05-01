@@ -29,6 +29,7 @@ echo "[startup] Writing .env..."
 PRIVATE_IP=$(hostname -I | awk '{print $1}')
 cat > "${DEPLOY_DIR}/.env" <<ENV
 NODE_ENV=production
+NO_COLOR=1
 PORT=__PORT__
 PRIVATE_IP=${PRIVATE_IP}
 ENV
