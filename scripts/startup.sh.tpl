@@ -4,7 +4,7 @@
 set -e
 
 ARTIFACT_URL="__ARTIFACT_URL__"
-DEPLOY_DIR="/opt/code-launcher"
+DEPLOY_DIR="/app/code-launcher"
 export HOME=/root
 
 echo "[startup] Downloading artifact from GCS..."

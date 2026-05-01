@@ -76,7 +76,7 @@ build {
       "sudo pm2 startup systemd -u root --hp /root",
 
       # 앱 배포 디렉토리 생성
-      "sudo mkdir -p /opt/code-launcher",
+      "sudo mkdir -p /app/code-launcher",
 
       # 패키지 캐시 정리 (이미지 크기 감소)
       "sudo apt-get clean",
