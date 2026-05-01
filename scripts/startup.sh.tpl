@@ -33,14 +33,29 @@ PORT=__PORT__
 PRIVATE_IP=${PRIVATE_IP}
 ENV
 
-echo "[startup] Starting app with PM2..."
-set -a
-source "${DEPLOY_DIR}/.env"
-set +a
-pm2 describe code-launcher > /dev/null 2>&1 \
-  && pm2 reload code-launcher --update-env \
-  || pm2 start dist/main.js --name code-launcher
+echo "[startup] Writing systemd service..."
+cat > /etc/systemd/system/code-launcher.service <<EOF
+[Unit]
+Description=Code Launcher
+After=network.target docker.service
 
-pm2 save
+[Service]
+WorkingDirectory=${DEPLOY_DIR}
+EnvironmentFile=${DEPLOY_DIR}/.env
+ExecStart=/usr/bin/node ${DEPLOY_DIR}/dist/main.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=code-launcher
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "[startup] Starting app with systemd..."
+systemctl daemon-reload
+systemctl enable code-launcher
+systemctl restart code-launcher
 
 echo "[startup] Done."

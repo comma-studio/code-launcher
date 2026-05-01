@@ -69,11 +69,13 @@ build {
       "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -",
       "sudo apt-get install -y nodejs",
 
-      # pnpm, PM2 전역 설치
-      "sudo npm install -g pnpm pm2",
+      # pnpm 전역 설치
+      "sudo npm install -g pnpm",
 
-      # PM2 systemd 서비스 등록 (VM 재부팅 시 앱 자동 기동)
-      "sudo pm2 startup systemd -u root --hp /root",
+      # Google Cloud Ops Agent 설치 (journald 로그 → Cloud Logging 전송)
+      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
+      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
+      "rm add-google-cloud-ops-agent-repo.sh",
 
       # 앱 배포 디렉토리 생성
       "sudo mkdir -p /app/code-launcher",
