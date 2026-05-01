@@ -37,7 +37,7 @@ source "googlecompute" "golden" {
   image_name   = "code-launcher-golden-{{timestamp}}"
   image_family = "code-launcher-golden"
 
-  disk_size = 10
+  disk_size = 15
   disk_type = "pd-standard"
 
   ssh_username = "packer"
@@ -64,6 +64,13 @@ build {
       # GitHub Actions SA가 docker 명령을 실행할 수 있도록 권한 부여
       # startup-script는 root로 실행되므로 root도 docker 그룹에 추가
       "sudo usermod -aG docker packer",
+
+      # 코드 실행에 사용되는 언어별 Docker 이미지 사전 pull
+      # 런타임에 pull이 발생하면 첫 실행 지연이 크므로 골든 이미지에 미리 포함한다
+      "sudo docker pull node:20-slim",
+      "sudo docker pull python:3.12-slim",
+      "sudo docker pull gcc:13",
+      "sudo docker pull eclipse-temurin:21-jdk-alpine",
 
       # Node.js 20 설치
       "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -",
