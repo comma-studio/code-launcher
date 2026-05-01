@@ -1,6 +1,9 @@
 #!/bin/bash
-# VM 부팅 시 자동 실행되는 스크립트
-# __ARTIFACT_URL__ 은 배포 시 실제 GCS 경로로 치환된다
+# GCP MIG code-launcher 인스턴스 부팅 시 자동 실행되는 startup script 템플릿
+# CI/CD 파이프라인(build-and-deploy.yml)이 배포 시점에 아래 플레이스홀더를 실제 값으로 치환한 뒤
+# gcloud instance-templates create --metadata=startup-script 옵션으로 인스턴스 메타데이터에 주입한다.
+#   __ARTIFACT_URL__ → GCS에 업로드된 빌드 아티팩트 경로 (예: gs://bucket/code-launcher/YYYYMMDD-abc1234.tar.gz)
+#   __PORT__         → 앱이 수신할 포트 번호
 set -e
 
 ARTIFACT_URL="__ARTIFACT_URL__"

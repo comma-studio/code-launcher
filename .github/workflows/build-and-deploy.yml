@@ -53,11 +53,11 @@ jobs:
                   ARTIFACT_URL="gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ env.BUILD_ID }}.tar.gz"
                   TEMPLATE_NAME="code-launcher-${{ env.BUILD_ID }}"
 
-                  # startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
+                  # gcp-code-launcher-startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
                   STARTUP_SCRIPT=$(sed \
                     -e "s|__ARTIFACT_URL__|${ARTIFACT_URL}|g" \
                     -e "s|__PORT__|${{ vars.APP_PORT }}|g" \
-                    scripts/startup.sh.tpl)
+                    scripts/gcp-code-launcher-startup.sh.tpl)
 
                   if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --quiet 2>/dev/null; then
                     echo "Instance template ${TEMPLATE_NAME} already exists, skipping creation."
