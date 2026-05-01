@@ -67,7 +67,7 @@ jobs:
                       --machine-type=${{ vars.GCP_VM_MACHINE_TYPE }} \
                       --image-family=code-launcher-golden \
                       --image-project=${{ vars.GCP_PROJECT_ID }} \
-                      --boot-disk-size=10GB \
+                      --boot-disk-size=15GB \
                       --boot-disk-type=pd-standard \
                       --metadata=startup-script="${STARTUP_SCRIPT}" \
                       --scopes=cloud-platform \
