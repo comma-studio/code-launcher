@@ -1,6 +1,7 @@
 on:
     push:
         branches: [feature/#28]
+    workflow_dispatch:
 
 name: Build and Deploy
 
