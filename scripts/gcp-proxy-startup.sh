@@ -19,9 +19,11 @@ cat > /etc/nginx/sites-available/default <<'EOF'
 server {
     listen 80;
 
-    location ~ ^/([0-9.]+)/([0-9]+)(/.*)?$ {
+    location ~ ^/([0-9.]+)/([0-9]+)(/.*)$ {
         set $target_ip   $1;
         set $target_port $2;
+
+        rewrite ^/[0-9.]+/[0-9]+(/.*)$ $1 break;
 
         proxy_pass         http://$target_ip:$target_port;
         proxy_http_version 1.1;

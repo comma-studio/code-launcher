@@ -28,20 +28,22 @@ fi
 echo "[create-proxy] Project: ${PROJECT_ID}, Zone: ${ZONE}"
 
 echo "[create-proxy] Creating instance template '${TEMPLATE_NAME}'..."
+# 인스턴스 템플릿은 불변(immutable)이므로 항상 삭제 후 재생성한다.
 if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --project="${PROJECT_ID}" --quiet 2>/dev/null; then
-    echo "[create-proxy] Template '${TEMPLATE_NAME}' already exists, skipping."
-else
-    gcloud compute instance-templates create "${TEMPLATE_NAME}" \
-        --project="${PROJECT_ID}" \
-        --machine-type="${MACHINE_TYPE}" \
-        --image-family=ubuntu-2204-lts \
-        --image-project=ubuntu-os-cloud \
-        --boot-disk-size=10GB \
-        --boot-disk-type=pd-standard \
-        --tags=op-comma-code-launcher-proxy,http-server \
-        --metadata-from-file=startup-script="${SCRIPT_DIR}/gcp-proxy-startup.sh"
-    echo "[create-proxy] Template '${TEMPLATE_NAME}' created."
+    echo "[create-proxy] Deleting existing template '${TEMPLATE_NAME}'..."
+    gcloud compute instance-templates delete "${TEMPLATE_NAME}" --project="${PROJECT_ID}" --quiet
 fi
+
+gcloud compute instance-templates create "${TEMPLATE_NAME}" \
+    --project="${PROJECT_ID}" \
+    --machine-type="${MACHINE_TYPE}" \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud \
+    --boot-disk-size=10GB \
+    --boot-disk-type=pd-standard \
+    --tags=op-comma-code-launcher-proxy,http-server \
+    --metadata-from-file=startup-script="${SCRIPT_DIR}/gcp-proxy-startup.sh"
+echo "[create-proxy] Template '${TEMPLATE_NAME}' created."
 
 echo "[create-proxy] Creating instance '${INSTANCE_NAME}'..."
 if gcloud compute instances describe "${INSTANCE_NAME}" --zone="${ZONE}" --project="${PROJECT_ID}" --quiet 2>/dev/null; then
