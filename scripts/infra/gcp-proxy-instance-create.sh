@@ -42,7 +42,7 @@ gcloud compute instance-templates create "${TEMPLATE_NAME}" \
     --boot-disk-size=10GB \
     --boot-disk-type=pd-standard \
     --tags=op-comma-code-launcher-proxy,http-server \
-    --metadata-from-file=startup-script="${SCRIPT_DIR}/gcp-proxy-startup.sh"
+    --metadata-from-file=startup-script="${SCRIPT_DIR}/../startup/gcp-proxy-startup.sh"
 echo "[create-proxy] Template '${TEMPLATE_NAME}' created."
 
 echo "[create-proxy] Creating instance '${INSTANCE_NAME}'..."
