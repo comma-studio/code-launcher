@@ -18,7 +18,8 @@ export interface CodeLaunchResponseJob {
 
     // NOTE: WS에 연결하기 위한 정보 (성공 시)
     connection?: {
-        wsUrl: string;
+        origin: string;
+        path: string;
     };
 
     // NOTE: 컨테이너 정보 (성공 시)
