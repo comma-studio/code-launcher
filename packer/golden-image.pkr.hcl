@@ -1,3 +1,18 @@
+# 골든 이미지 빌드 방법
+#
+# 1. 사전 준비
+#    gcloud auth application-default login
+#    gcloud services enable compute.googleapis.com --project=<PROJECT_ID>
+#    (packer-build 태그 인스턴스에 SSH 22번 포트 인바운드 허용 필요)
+#
+# 2. 플러그인 초기화 (최초 1회)
+#    packer init .
+#
+# 3. 빌드
+#    packer build -var "project_id=<PROJECT_ID>" golden-image.pkr.hcl
+#
+# 빌드 성공 시 이미지 패밀리 "code-launcher-golden" 으로 GCP에 등록됨
+
 packer {
   required_plugins {
     googlecompute = {
