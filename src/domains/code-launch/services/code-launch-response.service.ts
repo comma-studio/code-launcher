@@ -46,14 +46,14 @@ export class CodeLaunchResponseService {
     }
 
     /**
-     * NOTE: WebSocket 접속 경로 생성 (/privateIp/port)
+     * NOTE: WebSocket 접속 경로 생성 (/privateIp/port/socket.io)
      * - 운영 환경: 프록시가 특정 Code Launcher 인스턴스로 라우팅하기 위한 경로
      * - 개발 환경: 빈 문자열
      */
     private buildWsPath(_wsConfig: WSConnectionConfig, port: number): string {
         if (process.env.NODE_ENV === 'production') {
             const privateIp = process.env.PRIVATE_IP;
-            return `/${privateIp}/${port}`;
+            return `/${privateIp}/${port}/socket.io`;
         }
         return '';
     }
