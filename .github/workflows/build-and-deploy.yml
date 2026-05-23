@@ -39,7 +39,7 @@ jobs:
 
             - name: Build and Upload Artifact to GCS
               run: |
-                  npm install -g pnpm
+                  npm install -g pnpm@10
                   CI=true pnpm install --frozen-lockfile
                   pnpm build
 
