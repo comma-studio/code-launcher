@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsIn, IsOptional } from 'class-validator';
 
 /**
  * NOTE: WebSocket 연결 설정 스키마
@@ -11,8 +11,9 @@ export class WSConnectionConfig {
     @IsIn(['ws', 'wss'])
     PROTOCOL: string;
 
-    // NOTE: WebSocket 연결 URL (호스트:포트)
+    // NOTE: 프록시 서버 호스트 — OP 환경에서만 필요 (개발 환경에서는 미사용)
     @IsString()
     @IsNotEmpty()
-    URL: string;
+    @IsOptional()
+    PROXY_HOST?: string;
 }
