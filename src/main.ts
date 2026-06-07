@@ -8,6 +8,6 @@ async function bootstrap() {
     // NOTE: WebSocket 어댑터 설정 (socket.io 사용)
     app.useWebSocketAdapter(new IoAdapter(app));
 
-    await app.listen(process.env.PORT ?? 4000);
+    await app.listen(process.env.PORT ?? 4000, '0.0.0.0');
 }
 void bootstrap();

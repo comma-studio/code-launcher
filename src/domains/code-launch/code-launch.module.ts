@@ -4,7 +4,9 @@ import { QueueRegisterModule } from '@common/adapters/bullmq';
 
 import { CodeLaunchRequestProcessor } from './processors/code-launch-request.processor';
 import { DockerService } from './services/docker.service';
+import { CodeLaunchService } from './services/code-launch.service';
 import { CodeLaunchResponseService } from './services/code-launch-response.service';
+import { ContainerConnectionTimeoutService } from './services/container-connection-timeout.service';
 
 @Module({
     imports: [
@@ -17,8 +19,12 @@ import { CodeLaunchResponseService } from './services/code-launch-response.servi
         CodeLaunchRequestProcessor,
         // NOTE: Docker 컨테이너 관리 서비스
         DockerService,
+        // NOTE: 코드 주입 및 컴파일 서비스
+        CodeLaunchService,
         // NOTE: Code Launch 응답 전송 서비스
         CodeLaunchResponseService,
+        // NOTE: PTY 미연결 시 컨테이너 자동 종료 타이머 서비스
+        ContainerConnectionTimeoutService,
     ],
 })
 export class CodeLaunchModule {}

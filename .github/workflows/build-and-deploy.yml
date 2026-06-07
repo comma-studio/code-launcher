@@ -1,0 +1,112 @@
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+name: Build and Deploy
+
+jobs:
+    build-and-deploy:
+        name: Build and Deploy
+        runs-on: ubuntu-22.04
+        timeout-minutes: 10
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - id: 'auth'
+              name: Authenticate to GCP
+              uses: google-github-actions/auth@v1
+              with:
+                  credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+            - name: Set up Cloud SDK
+              uses: google-github-actions/setup-gcloud@v1
+              with:
+                  project_id: ${{ vars.GCP_PROJECT_ID }}
+
+            - name: Generate Build ID
+              run: |
+                  DATETIME=$(date +'%Y%m%d%H%M')
+                  SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+                  # BUILD_ID: GCS 아티팩트 경로 및 Instance Template 이름에 사용
+                  echo "BUILD_ID=${DATETIME}-${SHORT_SHA}" >> $GITHUB_ENV
+
+            - name: Fetch config from Secret Manager
+              run: |
+                  gcloud secrets versions access latest --secret="${{ vars.GCP_SECRET_NAME }}" > configs/config.json
+
+            - name: Build and Upload Artifact to GCS
+              run: |
+                  npm install -g pnpm@10
+                  CI=true pnpm install --frozen-lockfile
+                  pnpm build
+
+                  # dist, configs, package 파일만 타볼로 묶어 GCS에 업로드
+                  # node_modules는 VM에서 pnpm-lock.yaml 기반으로 직접 설치
+                  tar -czf artifact.tar.gz dist/ configs/ package.json pnpm-lock.yaml
+                  gsutil cp artifact.tar.gz gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ env.BUILD_ID }}.tar.gz
+                  rm artifact.tar.gz
+
+            - name: Create Instance Template
+              run: |
+                  ARTIFACT_URL="gs://${{ vars.GCP_GCS_BUCKET }}/code-launcher/${{ env.BUILD_ID }}.tar.gz"
+                  TEMPLATE_NAME="code-launcher-${{ env.BUILD_ID }}"
+
+                  # scripts/startup/gcp-code-launcher-startup.sh.tpl의 플레이스홀더를 실제 값으로 치환
+                  STARTUP_SCRIPT=$(sed \
+                    -e "s|__ARTIFACT_URL__|${ARTIFACT_URL}|g" \
+                    -e "s|__PORT__|${{ vars.APP_PORT }}|g" \
+                    scripts/startup/gcp-code-launcher-startup.sh.tpl)
+
+                  if gcloud compute instance-templates describe "${TEMPLATE_NAME}" --quiet 2>/dev/null; then
+                    echo "Instance template ${TEMPLATE_NAME} already exists, skipping creation."
+                  else
+                    gcloud compute instance-templates create "${TEMPLATE_NAME}" \
+                      --project=${{ vars.GCP_PROJECT_ID }} \
+                      --machine-type=${{ vars.GCP_VM_MACHINE_TYPE }} \
+                      --image-family=code-launcher-golden \
+                      --image-project=${{ vars.GCP_PROJECT_ID }} \
+                      --boot-disk-size=15GB \
+                      --boot-disk-type=pd-standard \
+                      --metadata=startup-script="${STARTUP_SCRIPT}" \
+                      --scopes=cloud-platform \
+                      --tags=code-launcher \
+                      --no-address
+                  fi
+
+            - name: Cleanup Old Instance Templates
+              run: |
+                  # code-launcher- 접두사 템플릿을 생성 시간 오름차순으로 정렬 후 5개 초과분 삭제
+                  TEMPLATES=$(gcloud compute instance-templates list \
+                    --filter="name~'^code-launcher-'" \
+                    --sort-by=creationTimestamp \
+                    --format="value(name)")
+
+                  TEMPLATE_COUNT=$(echo "${TEMPLATES}" | grep -c . || true)
+
+                  if [ "${TEMPLATE_COUNT}" -gt 5 ]; then
+                    DELETE_COUNT=$((TEMPLATE_COUNT - 5))
+                    echo "${TEMPLATES}" | head -n "${DELETE_COUNT}" | xargs -I{} gcloud compute instance-templates delete {} --quiet
+                    echo "Deleted ${DELETE_COUNT} old instance template(s)."
+                  else
+                    echo "Instance template count (${TEMPLATE_COUNT}) is within limit. No cleanup needed."
+                  fi
+
+            - name: Deploy to MIG
+              run: |
+                  TEMPLATE_NAME="code-launcher-${{ env.BUILD_ID }}"
+
+                  # MIG에 새 Instance Template으로 롤링 업데이트
+                  gcloud compute instance-groups managed rolling-action start-update ${{ vars.GCP_MIG_NAME }} \
+                    --version=template="${TEMPLATE_NAME}" \
+                    --max-unavailable=0 \
+                    --max-surge=1 \
+                    --zone=${{ vars.GCP_VM_ZONE }}
+
+                  # 롤링 업데이트 완료까지 대기 (10분 초과 시 실패 처리)
+                  gcloud compute instance-groups managed wait-until ${{ vars.GCP_MIG_NAME }} \
+                    --version-target-reached \
+                    --zone=${{ vars.GCP_VM_ZONE }} \
+                    --timeout=600
