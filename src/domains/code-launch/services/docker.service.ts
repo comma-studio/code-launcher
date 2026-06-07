@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Docker from 'dockerode';
 import { DOCKER_CLIENT } from '@common/adapters/docker';
+import { CatchError } from '@common/decorators/catch-error.decorator';
 import { DOCKER_IMAGE_MAP } from '../common/constants/docker-image-map.constant';
+import { ErrorCode } from '@common/enums/error-code.enum';
 
 interface PullEvent {
     status?: string;
@@ -23,14 +25,20 @@ export class DockerService {
     /**
      * NOTE: 코드 실행을 위한 Docker 컨테이너 생성 및 시작
      * @param codeLanguage 프로그래밍 언어
-     * @param runCmd PTY 세션 오픈 시 실행할 명령어 (Docker 라벨로 저장)
+     * @param code 실행할 코드 (추후 컨테이너에 주입 예정)
+     * @param jobId BullMQ Job ID (로그 추적용)
      * @returns 컨테이너 ID
      */
-    async createAndStartContainer(codeLanguage: string, runCmd: string): Promise<string> {
+    @CatchError(ErrorCode.CONTAINER_CREATE_FAILED)
+    async createAndStartContainer(
+        codeLanguage: string,
+        runCmd: string,
+        jobId: string,
+    ): Promise<string> {
         const imageName = DOCKER_IMAGE_MAP[codeLanguage.toLowerCase()] || 'ubuntu:22.04';
 
         // NOTE: 이미지가 로컬에 없으면 pull
-        await this.pullImageIfNotExists(imageName);
+        await this.pullImageIfNotExists(imageName, jobId);
 
         // NOTE: 컨테이너 생성
         const container = await this.docker.createContainer({
@@ -60,7 +68,7 @@ export class DockerService {
         const containerInfo = await container.inspect();
 
         this.logger.log(
-            `Created and started container - ID: ${containerInfo.Id}, Image: ${imageName}`,
+            `Created and started container - jobId: ${jobId}, ID: ${containerInfo.Id}, Image: ${imageName}`,
         );
 
         return containerInfo.Id;
@@ -69,15 +77,17 @@ export class DockerService {
     /**
      * NOTE: Docker 이미지가 로컬에 없으면 pull
      * @param imageName 이미지 이름
+     * @param jobId BullMQ Job ID (로그 추적용)
      */
-    private async pullImageIfNotExists(imageName: string): Promise<void> {
+    @CatchError(ErrorCode.IMAGE_PULL_FAILED)
+    private async pullImageIfNotExists(imageName: string, jobId: string): Promise<void> {
         const images = await this.docker.listImages();
         const imageExists = images.some((image) =>
             image.RepoTags?.some((tag) => tag === imageName),
         );
 
         if (!imageExists) {
-            this.logger.log(`Pulling image: ${imageName}`);
+            this.logger.debug(`[jobId: ${jobId}] Pulling image: ${imageName}`);
             await new Promise<void>((resolve, reject) => {
                 void this.docker.pull(
                     imageName,
@@ -93,7 +103,9 @@ export class DockerService {
                                 if (err) {
                                     reject(err);
                                 } else {
-                                    this.logger.log(`Successfully pulled image: ${imageName}`);
+                                    this.logger.log(
+                                        `[jobId: ${jobId}] Successfully pulled image: ${imageName}`,
+                                    );
                                     resolve();
                                 }
                             },

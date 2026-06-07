@@ -2,6 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import Docker from 'dockerode';
 import * as tar from 'tar-stream';
 import { DOCKER_CLIENT } from '@common/adapters/docker';
+import { CatchError } from '@common/decorators/catch-error.decorator';
+import { ErrorCode } from '@common/enums/error-code.enum';
 
 export class CompileError extends Error {
     constructor(public readonly stderr: string) {
@@ -24,6 +26,7 @@ export class CodeLaunchService {
      * @param fileName 생성할 파일명
      * @param code 파일 내용
      */
+    @CatchError(ErrorCode.CODE_INJECT_FAILED)
     async injectCode(containerId: string, fileName: string, code: string): Promise<void> {
         const pack = tar.pack();
         pack.entry({ name: fileName }, code);
@@ -48,6 +51,7 @@ export class CodeLaunchService {
      * @param compileCmd 컴파일 명령어
      * @throws CompileError exitCode !== 0인 경우
      */
+    @CatchError(ErrorCode.CODE_COMPILE_FAILED)
     async compile(containerId: string, compileCmd: string): Promise<void> {
         const container = this.docker.getContainer(containerId);
 
